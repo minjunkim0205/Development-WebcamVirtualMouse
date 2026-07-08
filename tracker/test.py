@@ -1,5 +1,4 @@
 import cv2
-
 from camera.webcam import Webcam
 from hand_tracking.mediapipe_tracker import HandTracker
 
