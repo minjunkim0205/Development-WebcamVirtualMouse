@@ -1,4 +1,4 @@
-# 🖐️ Research-WebcamHandMouse
+# 💻 Research-WebcamHandMouse
 
 ## Preview
 
