@@ -1,5 +1,6 @@
 import cv2
 import time
+import numpy as np
 
 import config
 from camera.webcam import Webcam
@@ -36,6 +37,11 @@ def main():
             if frame is None:
                 print("Frame read failed")
                 break
+
+            if config.BLACK_BACKGROUND_PREVIEW:
+                display_frame = np.zeros_like(frame)
+            else:
+                display_frame = frame.copy()
 
             data = tracker.process(frame)
 
@@ -79,26 +85,59 @@ def main():
                     right_pressed = False
 
                 if config.SHOW_PREVIEW:
-                    cv2.circle(frame, thumb, 12, (255, 0, 0), -1)
-                    cv2.circle(frame, index, 12, (0, 255, 0), -1)
-                    cv2.circle(frame, middle, 12, (0, 255, 255), -1)
+                    cv2.circle(display_frame, thumb, 12, (255, 0, 0), -1)
+                    cv2.circle(display_frame, index, 12, (0, 255, 0), -1)
+                    cv2.circle(display_frame, middle, 12, (0, 255, 255), -1)
 
-                    cv2.putText(frame, "THUMB", (thumb[0] + 10, thumb[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+                    cv2.putText(
+                        display_frame,
+                        "THUMB",
+                        (thumb[0] + 10, thumb[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (255, 0, 0),
+                        2
+                    )
 
-                    cv2.putText(frame, "INDEX", (index[0] + 10, index[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    cv2.putText(
+                        display_frame,
+                        f"INDEX {index}",
+                        (index[0] + 10, index[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 255, 0),
+                        2
+                    )
 
-                    cv2.putText(frame, "MIDDLE", (middle[0] + 10, middle[1] - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                    cv2.putText(
+                        display_frame,
+                        "MIDDLE",
+                        (middle[0] + 10, middle[1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.6,
+                        (0, 255, 255),
+                        2
+                    )
 
-                    cv2.putText(frame, f"Left pinch: {data['left_pinch']}",
-                                (20, 80), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.8, (0, 255, 0), 2)
+                    cv2.putText(
+                        display_frame,
+                        f"Left pinch: {data['left_pinch']}",
+                        (20, 80),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (0, 255, 0),
+                        2
+                    )
 
-                    cv2.putText(frame, f"Right pinch: {data['right_pinch']}",
-                                (20, 115), cv2.FONT_HERSHEY_SIMPLEX,
-                                0.8, (0, 255, 255), 2)
+                    cv2.putText(
+                        display_frame,
+                        f"Right pinch: {data['right_pinch']}",
+                        (20, 115),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.8,
+                        (0, 255, 255),
+                        2
+                    )
 
             else:
                 prev_index = None
@@ -117,11 +156,17 @@ def main():
                     fps = 1 / (now - prev_time)
                     prev_time = now
 
-                    cv2.putText(frame, f"FPS: {fps:.1f}",
-                                (20, 40), cv2.FONT_HERSHEY_SIMPLEX,
-                                1, (0, 255, 0), 2)
+                    cv2.putText(
+                        display_frame,
+                        f"FPS: {fps:.1f}",
+                        (20, 40),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        1,
+                        (0, 255, 0),
+                        2
+                    )
 
-                cv2.imshow(config.WINDOW_NAME, frame)
+                cv2.imshow(config.WINDOW_NAME, display_frame)
 
                 if cv2.waitKey(1) & 0xFF == ord("q"):
                     break

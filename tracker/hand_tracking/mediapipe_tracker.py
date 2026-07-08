@@ -32,16 +32,20 @@ class MediaPipeTracker:
         middle = self._to_pixel(lm[12], w, h)
 
         thumb_index_distance = self._distance(thumb, index)
-        index_middle_distance = self._distance(index, middle)
+        thumb_middle_distance = self._distance(thumb, middle)
 
         return {
             "thumb": thumb,
             "index": index,
             "middle": middle,
+            
+            # Left click : thumb + index finger
             "left_pinch": thumb_index_distance < config.PINCH_THRESHOLD,
-            "right_pinch": index_middle_distance < config.PINCH_THRESHOLD,
+            # Right click : thumb + middle finger
+            "right_pinch": thumb_middle_distance < config.PINCH_THRESHOLD,
+
             "thumb_index_distance": thumb_index_distance,
-            "index_middle_distance": index_middle_distance
+            "thumb_middle_distance": thumb_middle_distance
         }
 
     def _to_pixel(self, landmark, width, height):

@@ -31,3 +31,6 @@ PINCH_THRESHOLD = 45
 WINDOW_NAME = "Webcam Mouse"
 SHOW_PREVIEW = True
 SHOW_FPS = True
+
+# Preview Option
+BLACK_BACKGROUND_PREVIEW = True
