@@ -1,5 +1,6 @@
 import serial
 import time
+import config
 
 
 class SerialSender:
@@ -17,45 +18,35 @@ class SerialSender:
 
     CMD_SCROLL = 0x09
 
-    def __init__(self, port, baudrate):
-        self.ser = serial.Serial(port, baudrate)
-        time.sleep(2)
+    def __init__(self):
+        self.ser = serial.Serial(config.SERIAL_PORT, config.BAUDRATE)
+        time.sleep(config.SERIAL_WAIT_SECONDS)
 
     def _send(self, data):
         self.ser.write(bytes(data))
+        self.ser.flush()
 
     def move(self, dx, dy):
+        dx = int(max(-127, min(127, dx)))
+        dy = int(max(-127, min(127, dy)))
+
         self._send([
             self.CMD_MOVE,
             dx & 0xFF,
             dy & 0xFF
         ])
 
-    def click(self, button="left"):
-        if button == "left":
-            self._send([self.CMD_LEFT_CLICK])
-        elif button == "right":
-            self._send([self.CMD_RIGHT_CLICK])
-        elif button == "middle":
-            self._send([self.CMD_MIDDLE_CLICK])
+    def left_press(self):
+        self._send([self.CMD_LEFT_PRESS])
 
-    def press(self, button="left"):
-        if button == "left":
-            self._send([self.CMD_LEFT_PRESS])
-        elif button == "right":
-            self._send([self.CMD_RIGHT_PRESS])
+    def left_release(self):
+        self._send([self.CMD_LEFT_RELEASE])
 
-    def release(self, button="left"):
-        if button == "left":
-            self._send([self.CMD_LEFT_RELEASE])
-        elif button == "right":
-            self._send([self.CMD_RIGHT_RELEASE])
+    def right_press(self):
+        self._send([self.CMD_RIGHT_PRESS])
 
-    def scroll(self, amount):
-        self._send([
-            self.CMD_SCROLL,
-            amount & 0xFF
-        ])
+    def right_release(self):
+        self._send([self.CMD_RIGHT_RELEASE])
 
     def close(self):
         self.ser.close()
