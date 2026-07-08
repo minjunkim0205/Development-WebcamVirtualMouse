@@ -2,7 +2,6 @@ import serial
 import time
 import config
 
-
 class SerialSender:
     CMD_MOVE = 0x01
 
@@ -35,6 +34,14 @@ class SerialSender:
             dx & 0xFF,
             dy & 0xFF
         ])
+
+    def click(self, button="left"):
+        if button == "left":
+            self._send([self.CMD_LEFT_CLICK])
+        elif button == "right":
+            self._send([self.CMD_RIGHT_CLICK])
+        elif button == "middle":
+            self._send([self.CMD_MIDDLE_CLICK])
 
     def left_press(self):
         self._send([self.CMD_LEFT_PRESS])

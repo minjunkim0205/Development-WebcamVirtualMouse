@@ -8,25 +8,114 @@ from communication.serial_sender import SerialSender
 from hand_tracking.mediapipe_tracker import MediaPipeTracker
 
 
-def clamp(value, min_value, max_value):
-    return max(min_value, min(max_value, value))
+def handle_mouse_event(sender, button, event):
+    if event is None:
+        return
+
+    if button == "left":
+        if event == "click":
+            sender.click("left")
+        elif event == "press":
+            sender.left_press()
+        elif event == "release":
+            sender.left_release()
+
+    elif button == "right":
+        if event == "click":
+            sender.click("right")
+        elif event == "press":
+            sender.right_press()
+        elif event == "release":
+            sender.right_release()
 
 
-def apply_deadzone(value, deadzone):
-    if abs(value) < deadzone:
-        return 0
-    return value
+def draw_preview(frame, data, fps):
+    if data["hand_detected"]:
+        thumb = data["thumb"]
+        index = data["index"]
+        middle = data["middle"]
+
+        cv2.circle(frame, thumb, 12, (255, 0, 0), -1)
+        cv2.circle(frame, index, 12, (0, 255, 0), -1)
+        cv2.circle(frame, middle, 12, (0, 255, 255), -1)
+
+        cv2.putText(
+            frame,
+            f"INDEX {index}",
+            (index[0] + 10, index[1] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"L dist: {data['left_distance']:.1f} pressed: {data['left_pressed']}",
+            (20, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"R dist: {data['right_distance']:.1f} pressed: {data['right_pressed']}",
+            (20, 115),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 255),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"L event: {data['left_event']}",
+            (20, 150),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"R event: {data['right_event']}",
+            (20, 185),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 255),
+            2
+        )
+
+    else:
+        cv2.putText(
+            frame,
+            "No hand detected",
+            (20, 80),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 0, 255),
+            2
+        )
+
+    if config.SHOW_FPS:
+        cv2.putText(
+            frame,
+            f"FPS: {fps:.1f}",
+            (20, 40),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            (0, 255, 0),
+            2
+        )
 
 
 def main():
     webcam = Webcam()
     tracker = MediaPipeTracker()
     sender = SerialSender()
-
-    prev_index = None
-
-    left_pressed = False
-    right_pressed = False
 
     prev_time = time.time()
 
@@ -38,133 +127,28 @@ def main():
                 print("Frame read failed")
                 break
 
-            if config.BLACK_BACKGROUND_PREVIEW:
-                display_frame = np.zeros_like(frame)
-            else:
-                display_frame = frame.copy()
-
             data = tracker.process(frame)
 
-            if data is not None:
-                index = data["index"]
-                thumb = data["thumb"]
-                middle = data["middle"]
+            dx = data["move_dx"]
+            dy = data["move_dy"]
 
-                if prev_index is not None:
-                    dx = index[0] - prev_index[0]
-                    dy = index[1] - prev_index[1]
+            if dx != 0 or dy != 0:
+                sender.move(dx, dy)
 
-                    dx = apply_deadzone(dx, config.DEADZONE)
-                    dy = apply_deadzone(dy, config.DEADZONE)
-
-                    dx = int(dx * config.SENSITIVITY_X)
-                    dy = int(dy * config.SENSITIVITY_Y)
-
-                    dx = clamp(dx, -config.MAX_MOVE, config.MAX_MOVE)
-                    dy = clamp(dy, -config.MAX_MOVE, config.MAX_MOVE)
-
-                    if dx != 0 or dy != 0:
-                        sender.move(dx, dy)
-
-                prev_index = index
-
-                if data["left_pinch"] and not left_pressed:
-                    sender.left_press()
-                    left_pressed = True
-
-                elif not data["left_pinch"] and left_pressed:
-                    sender.left_release()
-                    left_pressed = False
-
-                if data["right_pinch"] and not right_pressed:
-                    sender.right_press()
-                    right_pressed = True
-
-                elif not data["right_pinch"] and right_pressed:
-                    sender.right_release()
-                    right_pressed = False
-
-                if config.SHOW_PREVIEW:
-                    cv2.circle(display_frame, thumb, 12, (255, 0, 0), -1)
-                    cv2.circle(display_frame, index, 12, (0, 255, 0), -1)
-                    cv2.circle(display_frame, middle, 12, (0, 255, 255), -1)
-
-                    cv2.putText(
-                        display_frame,
-                        "THUMB",
-                        (thumb[0] + 10, thumb[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (255, 0, 0),
-                        2
-                    )
-
-                    cv2.putText(
-                        display_frame,
-                        f"INDEX {index}",
-                        (index[0] + 10, index[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 0),
-                        2
-                    )
-
-                    cv2.putText(
-                        display_frame,
-                        "MIDDLE",
-                        (middle[0] + 10, middle[1] - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.6,
-                        (0, 255, 255),
-                        2
-                    )
-
-                    cv2.putText(
-                        display_frame,
-                        f"Left pinch: {data['left_pinch']}",
-                        (20, 80),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (0, 255, 0),
-                        2
-                    )
-
-                    cv2.putText(
-                        display_frame,
-                        f"Right pinch: {data['right_pinch']}",
-                        (20, 115),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        0.8,
-                        (0, 255, 255),
-                        2
-                    )
-
-            else:
-                prev_index = None
-
-                if left_pressed:
-                    sender.left_release()
-                    left_pressed = False
-
-                if right_pressed:
-                    sender.right_release()
-                    right_pressed = False
+            handle_mouse_event(sender, "left", data["left_event"])
+            handle_mouse_event(sender, "right", data["right_event"])
 
             if config.SHOW_PREVIEW:
-                if config.SHOW_FPS:
-                    now = time.time()
-                    fps = 1 / (now - prev_time)
-                    prev_time = now
+                if config.BLACK_BACKGROUND_PREVIEW:
+                    display_frame = np.zeros_like(frame)
+                else:
+                    display_frame = frame.copy()
 
-                    cv2.putText(
-                        display_frame,
-                        f"FPS: {fps:.1f}",
-                        (20, 40),
-                        cv2.FONT_HERSHEY_SIMPLEX,
-                        1,
-                        (0, 255, 0),
-                        2
-                    )
+                now = time.time()
+                fps = 1 / (now - prev_time)
+                prev_time = now
+
+                draw_preview(display_frame, data, fps)
 
                 cv2.imshow(config.WINDOW_NAME, display_frame)
 
@@ -172,10 +156,10 @@ def main():
                     break
 
     finally:
-        if left_pressed:
+        if tracker.left_pressed:
             sender.left_release()
 
-        if right_pressed:
+        if tracker.right_pressed:
             sender.right_release()
 
         sender.close()
