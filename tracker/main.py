@@ -34,10 +34,12 @@ def draw_preview(frame, data, fps):
         thumb = data["thumb"]
         index = data["index"]
         middle = data["middle"]
+        palm = data["palm"]
 
         cv2.circle(frame, thumb, 12, (255, 0, 0), -1)
         cv2.circle(frame, index, 12, (0, 255, 0), -1)
         cv2.circle(frame, middle, 12, (0, 255, 255), -1)
+        cv2.circle(frame, palm, 14, (255, 255, 255), -1)
 
         cv2.putText(
             frame,
@@ -46,6 +48,16 @@ def draw_preview(frame, data, fps):
             cv2.FONT_HERSHEY_SIMPLEX,
             0.6,
             (0, 255, 0),
+            2
+        )
+
+        cv2.putText(
+            frame,
+            f"PALM {palm}",
+            (palm[0] + 10, palm[1] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.6,
+            (255, 255, 255),
             2
         )
 

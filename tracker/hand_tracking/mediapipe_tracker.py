@@ -20,7 +20,7 @@ class MediaPipeTracker:
         self.prev_thumb = None
         self.prev_index = None
         self.prev_middle = None
-
+        self.prev_palm = None
         self.prev_cursor = None
 
         self.left_pressed = False
@@ -45,19 +45,30 @@ class MediaPipeTracker:
         index_raw = self._to_pixel(lm[8], w, h)
         middle_raw = self._to_pixel(lm[12], w, h)
 
+        palm_raw = self._average_points([
+            self._to_pixel(lm[0], w, h),   # wrist
+            self._to_pixel(lm[5], w, h),   # index MCP
+            self._to_pixel(lm[9], w, h),   # middle MCP
+            self._to_pixel(lm[13], w, h),  # ring MCP
+        ])
+
         thumb = self._smooth_point(self.prev_thumb, thumb_raw)
         index = self._smooth_point(self.prev_index, index_raw)
         middle = self._smooth_point(self.prev_middle, middle_raw)
+        palm = self._smooth_point(self.prev_palm, palm_raw)
 
         self.prev_thumb = thumb
         self.prev_index = index
         self.prev_middle = middle
+        self.prev_palm = palm
 
-        dx, dy = self._calculate_move(index)
-        self.prev_cursor = index
+        # 포인터 이동 기준은 검지 끝이 아니라 손바닥 중심
+        dx, dy = self._calculate_move(palm)
+        self.prev_cursor = palm
 
-        left_distance = self._distance(thumb, index)
-        right_distance = self._distance(thumb, middle)
+        # 클릭 판정은 기존처럼 손가락 거리 사용
+        left_distance = self._distance(thumb, index)    # 엄지 + 검지
+        right_distance = self._distance(thumb, middle)  # 엄지 + 중지
 
         left_action = self._handle_button(
             distance=left_distance,
@@ -83,6 +94,7 @@ class MediaPipeTracker:
             "thumb": thumb,
             "index": index,
             "middle": middle,
+            "palm": palm,
 
             "move_dx": dx,
             "move_dy": dy,
@@ -101,6 +113,7 @@ class MediaPipeTracker:
         self.prev_thumb = None
         self.prev_index = None
         self.prev_middle = None
+        self.prev_palm = None
         self.prev_cursor = None
 
         left_event = None
@@ -124,6 +137,7 @@ class MediaPipeTracker:
             "thumb": None,
             "index": None,
             "middle": None,
+            "palm": None,
 
             "move_dx": 0,
             "move_dy": 0,
@@ -138,12 +152,12 @@ class MediaPipeTracker:
             "right_distance": None
         }
 
-    def _calculate_move(self, index):
+    def _calculate_move(self, cursor):
         if self.prev_cursor is None:
             return 0, 0
 
-        dx = index[0] - self.prev_cursor[0]
-        dy = index[1] - self.prev_cursor[1]
+        dx = cursor[0] - self.prev_cursor[0]
+        dy = cursor[1] - self.prev_cursor[1]
 
         dx = self._apply_deadzone(dx)
         dy = self._apply_deadzone(dy)
@@ -208,6 +222,11 @@ class MediaPipeTracker:
         x = int(prev[0] * (1 - alpha) + current[0] * alpha)
         y = int(prev[1] * (1 - alpha) + current[1] * alpha)
 
+        return x, y
+
+    def _average_points(self, points):
+        x = sum(p[0] for p in points) // len(points)
+        y = sum(p[1] for p in points) // len(points)
         return x, y
 
     def _distance(self, p1, p2):
