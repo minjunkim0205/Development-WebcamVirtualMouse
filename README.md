@@ -9,13 +9,13 @@
 ## Introduction
 
 > Python, OpenCV, MediaPipe를 이용하여 웹캠만으로 마우스를 제어하는 Hand Tracking 프로젝트  
-> 현재는 Arduino HID를 통해 실제 USB 마우스를 제어하며, 추후 Python Virtual Mouse를 이용한 하드웨어 없는 방식도 지원할 예정이다.
+> Arduino HID를 이용한 실제 USB 마우스와 Python Virtual Mouse를 모두 지원하는 듀얼 출력 구조를 구현하였다.
 
 ---
 
 ## Requirements
 
-> Python Version : 3.11 이상 권장
+> Python Version : 3.9.8 이상 권장
 
 ```cmd
 pip install -r requirements.txt
@@ -28,7 +28,7 @@ pip install -r requirements.txt
 > OpenCV를 이용한 웹캠 입력  
 > MediaPipe Hands 기반 손 추적  
 > Arduino Leonardo / Pro Micro HID 지원  
-> **Python Virtual Mouse 지원 예정**  
+> Python Virtual Mouse(PyAutoGUI) 지원  
 > 단일 손 추적 최적화
 
 ---
@@ -39,7 +39,10 @@ pip install -r requirements.txt
 
 웹캠으로 손을 추적하여 마우스를 제어하는 프로젝트.
 
-현재는 Arduino HID를 이용하여 운영체제에서 일반 USB 마우스로 인식되는 방식으로 동작하며, 추후에는 별도의 하드웨어 없이 Python Virtual Mouse를 이용해 가상 마우스를 제어하는 기능도 추가할 예정이다.
+동일한 손 추적 엔진을 기반으로 두 가지 출력 방식을 지원한다.
+
+- **Arduino HID**를 이용하여 운영체제에서 실제 USB 마우스로 인식되는 방식
+- **PyAutoGUI**를 이용하여 별도의 하드웨어 없이 Python만으로 동작하는 가상 마우스 방식
 
 단순히 손가락 좌표를 따라가는 수준이 아니라 실제 마우스처럼 자연스럽게 사용할 수 있도록 다양한 움직임 보정 알고리즘을 적용하였다.
 
@@ -48,12 +51,34 @@ pip install -r requirements.txt
 # 📌 프로젝트 목표
 
 - 웹캠만으로 마우스 제어
-- 실제 USB HID 마우스 지원
-- **향후 Virtual Mouse 지원**
+- Arduino HID 지원
+- Python Virtual Mouse 지원
 - 높은 반응속도
 - 자연스러운 커서 움직임
 - 클릭 오동작 최소화
 - 확장 가능한 구조
+
+---
+
+# 📌 실행 방법
+
+## Arduino HID 버전
+
+```cmd
+python main.py
+```
+
+Arduino Leonardo / Pro Micro가 연결되어 있어야 한다.
+
+---
+
+## Virtual Mouse 버전
+
+```cmd
+python main_virtual.py
+```
+
+별도의 하드웨어 없이 PyAutoGUI를 이용하여 마우스를 제어한다.
 
 ---
 
@@ -127,8 +152,9 @@ pip install -r requirements.txt
 
 ## 🔌 마우스 출력 방식
 
-### 현재 구현
+### 1. Arduino HID
 
+```
 Python
 
 ↓
@@ -142,6 +168,7 @@ Arduino Leonardo / Pro Micro
 ↓
 
 USB HID Mouse
+```
 
 지원 명령
 
@@ -157,23 +184,25 @@ USB HID Mouse
 
 ---
 
-### 향후 구현 예정
+### 2. Python Virtual Mouse
 
+```
 Python
 
 ↓
 
-Virtual Mouse Driver
+PyAutoGUI
 
 ↓
 
-운영체제
+Operating System
 
 ↓
 
-가상 마우스 입력
+Virtual Mouse Input
+```
 
-별도의 Arduino 없이 Python만으로 마우스를 제어할 수 있도록 구현할 예정이다.
+별도의 Arduino 없이 Python만으로 마우스를 제어한다.
 
 ---
 
@@ -184,13 +213,14 @@ project/
 
 │
 
-├── main.py
-
+├── main.py                 # Arduino HID 버전
+├── main_virtual.py         # Virtual Mouse 버전
 ├── config.py
-
 ├── mediapipe_tracker.py
 
-├── serial_mouse.py
+├── communication/
+│   ├── serial_sender.py
+│   └── virtual_mouse.py
 
 ├── firmware/
 │   └── firmware.ino
@@ -207,6 +237,7 @@ project/
 - OpenCV
 - MediaPipe
 - PySerial
+- PyAutoGUI
 - NumPy
 
 ### Firmware
@@ -217,7 +248,7 @@ project/
 ### Hardware
 
 - Webcam
-- Arduino Leonardo / Pro Micro
+- Arduino Leonardo / Pro Micro (선택)
 
 ---
 
@@ -266,30 +297,31 @@ main.py
 ### 현재 구조
 
 ```text
-main.py
+main.py / main_virtual.py
 
-      │
-      ▼
+           │
+           ▼
 
 mediapipe_tracker.py
 
-      │
-      ▼
+           │
+           ▼
 
 Gesture Detection
 
-      │
-      ▼
+           │
+           ▼
 
-Mouse Event
+Output Layer
 
-      │
-      ▼
+     ┌──────────────┐
+     │              │
+     ▼              ▼
 
-serial_mouse.py
+serial_sender   virtual_mouse
 ```
 
-손 추적과 제스처 처리를 `mediapipe_tracker.py` 내부로 이동하여 `main.py`는 실행 및 제어만 담당하도록 구조를 개선하였다.
+손 추적과 제스처 처리를 `mediapipe_tracker.py` 내부로 이동하고, 출력 계층을 분리하여 Arduino HID와 Virtual Mouse를 동일한 인터페이스로 사용할 수 있도록 구조를 개선하였다.
 
 ---
 
@@ -335,6 +367,19 @@ serial_mouse.py
 
 ---
 
+### 출력 방식 확장
+
+문제
+
+- Arduino HID에 종속된 구조
+
+해결
+
+- 출력 계층(Output Layer) 분리
+- Arduino HID와 Virtual Mouse를 동일한 인터페이스로 지원
+
+---
+
 ### 구조 개선
 
 문제
@@ -350,8 +395,7 @@ serial_mouse.py
 
 # 📌 향후 개발 예정
 
-- ✅ Python Virtual Mouse 지원
-- Scroll Gesture
+- Scroll Gesture 개선
 - Right Click Gesture
 - Double Click Gesture
 - Multi Gesture
@@ -368,6 +412,6 @@ serial_mouse.py
 # 📌 최종 목표
 
 - 웹캠만으로 자연스럽게 사용할 수 있는 핸드 트래킹 마우스 구현
-- Arduino HID와 Python Virtual Mouse를 모두 지원하는 듀얼 출력 구조 개발
+- Arduino HID와 Python Virtual Mouse를 모두 지원하는 듀얼 출력 구조 제공
 - 실제 USB 마우스와 유사한 사용감 제공
 - 누구나 확장하여 사용할 수 있는 오픈소스 Hand Tracking Mouse 플랫폼 구축
